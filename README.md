@@ -15,3 +15,8 @@ A module designed to enhance the management of the Concentration condition when 
 3. Click "Install Module"
 4. Paste the following manifest into the "Manifest URL" field: `https://github.com/Niii989/bf-qol/releases/latest/download/module.json`
 5. Click "Install"
+
+## Future Plans
+- Link spell effects (like Bless) to the Concentrating effect, so that if concentration is broken, the associated spell effects are also removed.
+- Automatically adds activities for weapon options when the item has the property checked.
+- Tracks reactions via an effect when an actor takes an action outside of their turn.
