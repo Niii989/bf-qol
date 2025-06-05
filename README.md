@@ -10,6 +10,14 @@ A module designed to enhance the management of the Concentration condition when 
 ![Example Concentration.](img/concentration-example.webp)
 
 ## Installation
+### Method 1
+1. Launch Foundry
+2. Go to the "Add-on Modules" tab of the setup screen
+3. Click "Install Module"
+4. Search for "Black Flag QOL" in the pop up window.
+5. Click "Install"
+
+### Method 2
 1. Launch Foundry
 2. Go to the "Add-on Modules" tab of the setup screen
 3. Click "Install Module"
