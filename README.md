@@ -28,3 +28,6 @@ A module designed to enhance the management of the Concentration condition when 
 - Link spell effects (like Bless) to the Concentrating effect, so that if concentration is broken, the associated spell effects are also removed.
 - Automatically adds activities for weapon options when the item has the property checked.
 - Tracks reactions via an effect when an actor takes an action outside of their turn.
+
+## License
+Additional licensing information for artwork used in the system can be found [within the artwork/ folder](https://github.com/Niii989/bf-qol).
