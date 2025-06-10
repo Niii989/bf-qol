@@ -30,4 +30,4 @@ A module designed to enhance the management of the Concentration condition when 
 - Tracks reactions via an effect when an actor takes an action outside of their turn.
 
 ## License
-Additional licensing information for artwork used in the system can be found [within the artwork/ folder](https://github.com/Niii989/bf-qol).
+Additional licensing information for artwork used in the system can be found [within the artwork/ folder](https://github.com/Niii989/bf-qol/blob/master/artwork/LICENSE.txt).
