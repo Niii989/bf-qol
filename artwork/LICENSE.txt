@@ -1,0 +1,22 @@
+==============================================
+Artwork from Game-Icons.net
+==============================================
+
+Licensed from Game-Icons.net under CC BY 3.0 license unless otherwise noted. These icons are packaged with and provided for use in the Black Flag QOL module under the terms of their license, which can be found here: https://creativecommons.org/licenses/by/3.0/
+
+weapon-options/drop-weapon.svg - "Drop weapon" by Skoll
+	(https://game-icons.net/1x1/skoll/drop-weapon.html)
+weapon-options/explosive-materials.svg - "Explosive materials" by Lorc
+	(https://game-icons.net/1x1/lorc/explosive-materials.html)
+weapon-options/pull.svg - "Pull" by Delapouite
+	(https://game-icons.net/1x1/delapouite/pull.html)
+weapon-options/ragged-wound.svg - "Ragged wound" by Lorc
+	(https://game-icons.net/1x1/lorc/ragged-wound.html)
+weapon-options/ricochet.svg - "Ricochet" by Caro Asercion
+	(https://game-icons.net/1x1/caro-asercion/ricochet.html)
+weapon-options/shield-bash.svg - "Shield bash" by Delapouite
+	(https://game-icons.net/1x1/delapouite/shield-bash.html)
+weapon-options/supersonic-arrow.svg - "Supersonic arrow" by Lorc
+	(https://game-icons.net/1x1/lorc/supersonic-arrow.html)
+weapon-options/tripwire.svg - "Tripwire" by Lorc
+	(https://game-icons.net/1x1/lorc/tripwire.html)
