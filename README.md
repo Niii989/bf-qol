@@ -9,6 +9,10 @@ A module designed to enhance the management of the Concentration condition when 
 
 ![Example Concentration.](img/concentration-example.webp)
 
+Automatically adds and removes Weapon Option Activities to weapons on Player Character sheets (disabled by default).
+
+![Example Concentration.](img/weapon-activities-example.webp)
+
 ## Installation
 ### Method 1
 1. Launch Foundry
