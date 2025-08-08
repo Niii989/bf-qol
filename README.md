@@ -9,9 +9,9 @@ A module designed to enhance the management of the Concentration condition when 
 
 ![Example Concentration.](img/concentration-example.webp)
 
-Automatically adds and removes Weapon Option Activities to weapons on Player Character sheets (disabled by default).
+- Automatically adds and removes Weapon Option Activities to weapons on Player Character sheets (disabled by default).
 
-![Example Concentration.](img/weapon-activities-example.webp)
+![Example Weapon Activities.](img/weapon-activities-example.webp)
 
 ## Installation
 ### Method 1
@@ -34,4 +34,7 @@ Automatically adds and removes Weapon Option Activities to weapons on Player Cha
 - Tracks reactions via an effect when an actor takes an action outside of their turn.
 
 ## License
-Additional licensing information for artwork used in the system can be found [within the artwork/ folder](https://github.com/Niii989/bf-qol/blob/master/artwork/LICENSE.txt).
+This module includes content referencing the Black Flag Roleplaying ORC License Document by Kobold Press, available at:
+https://koboldpress.com/wp-content/uploads/2024/05/Black-Flag-Roleplaying.pdf
+
+The source code is licensed under GPL-3.0. Additional licensing information for artwork used in the system can be found [within the artwork/ folder](https://github.com/Niii989/bf-qol/blob/master/artwork/LICENSE.txt).
