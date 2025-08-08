@@ -1,3 +1,11 @@
+// Verify if LibWrapper is installed
+Hooks.once('ready', () => {
+  if (!game.modules.get('lib-wrapper')?.active && game.user.isGM)
+    ui.notifications.error("BF QOL requires the 'libWrapper' module. Please install and activate it.");
+});
+
+import { weaponOptionTemplates } from "./data/weapon-option-templates.js";
+
 //Module Settings
 function registerSettings() {
   const MODULE_ID = "bf-qol";
@@ -19,12 +27,22 @@ function registerSettings() {
     default: true,
     type: Boolean
   });
+
+  game.settings.register(MODULE_ID, "weaponOptions", {
+    name: "Enable Weapon Options Activities for PC",
+    hint: "Add and delete Weapon Options Activites from a Weapon in a PC Sheet.",
+    scope: "world",
+    config: true,
+    default: false,
+    type: Boolean
+  });
 }
 
 Hooks.once("init", () => {
   registerSettings();
 });
 
+//region Concentration
 Hooks.once("init", () => {
   //Add new template
   const parts = BlackFlag.applications.activity.ActivityActivationDialog.PARTS;
@@ -36,10 +54,8 @@ Hooks.once("init", () => {
   };
 
   // Add concentration variables to context BF
-  const originalPreparePartContext = BlackFlag.applications.activity.ActivityActivationDialog.prototype._preparePartContext;
-
-  BlackFlag.applications.activity.ActivityActivationDialog.prototype._preparePartContext = async function (partId, context, options) {
-    context = await originalPreparePartContext.call(this, partId, context, options);
+  libWrapper.register('bf-qol', 'BlackFlag.applications.activity.ActivityActivationDialog.prototype._preparePartContext', async function (wrapped, partId, context, options) {
+    context = await wrapped(partId, context, options);
 
     if (partId === "concentrating") {
       context.concentrationNote = this.config.concentrationNote;
@@ -47,7 +63,7 @@ Hooks.once("init", () => {
     }
 
     return context;
-  };
+  }, 'WRAPPER');
 
 });
 
@@ -87,7 +103,7 @@ Hooks.on("createChatMessage", async (message) => {
 
   //Verify if spell is used and requires Concentration
   const item = message.getAssociatedItem();
-  
+
   if (!item || item.type !== "spell") return;
 
   const actor = message.getAssociatedActor();
@@ -112,7 +128,7 @@ Hooks.on("createChatMessage", async (message) => {
   //Delete previous Concentration
   const existing = actor.effects.find(e => e.name?.startsWith("Concentrating"));
   if (existing) await existing.delete();
-  
+
   //Create new effect
   const effectData = {
     name: effectName,
@@ -156,12 +172,12 @@ Hooks.on("preUpdateActor", async (actor, updates, options, userId) => {
 
   //Get users Owner of actor to show save to GM and Owners
   const gmUsers = ChatMessage.getWhisperRecipients("GM").map(u => u.id);
-  const ownerUsers = actor?.ownership 
-  ? Object.entries(actor.ownership)
+  const ownerUsers = actor?.ownership
+    ? Object.entries(actor.ownership)
       .filter(([id, level]) => level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER)
       .map(([id]) => id)
-  : [];
-  const whisperTo = [...new Set([...gmUsers, ...ownerUsers])]; 
+    : [];
+  const whisperTo = [...new Set([...gmUsers, ...ownerUsers])];
 
   const chatContent = `
   <div>
@@ -187,9 +203,10 @@ Hooks.on("preUpdateActor", async (actor, updates, options, userId) => {
     content: chatContent,
     speaker: ChatMessage.getSpeaker({ actor }),
     flags: {
-    "bf-qol-concentrating": {
-      displayChallenge: true
-    }},
+      "bf-qol-concentrating": {
+        displayChallenge: true
+      }
+    },
     whisper: whisperTo
   });
 });
@@ -221,4 +238,66 @@ Hooks.on("renderChatMessage", (message, html, data) => {
     actor.rollAbilitySave(config);
 
   });
+});
+
+//region Weapon Options
+//Add weapon options activities
+Hooks.on("updateItem", async (item, updateData, options, userId) => {
+  const weaponOptions = game.settings.get("bf-qol", "weaponOptions");
+  if (!weaponOptions) return;
+
+  if (item.type !== "weapon") return;
+
+  // Check if the item is on a player character sheet
+  const actor = item.actor;
+  if (!actor) return;
+  if (actor.type !== "pc") return; 
+
+  const itemOptions = foundry.utils.getProperty(updateData, "system.options") ?? item.system.options ?? [];
+  const currentActivities = item.system.activities ?? {};
+
+  let updated = false;
+
+  // Add weapon options Activities if marked
+  for (const option of itemOptions) {
+    const template = weaponOptionTemplates[option];
+    if (!template) continue;
+
+    const alreadyExists = [...currentActivities.values()].some(
+      act => act.flags?.["bf-qol"]?.activity === option
+    );
+    if (!alreadyExists) {
+      const activity = foundry.utils.duplicate(weaponOptionTemplates[option]);
+      const id = foundry.utils.randomID();
+      activity._id = id;
+      currentActivities[id] = activity;
+      updated = true;
+    }
+  }
+
+  // Remove Weapon Options Activites if not marked
+  let id_array = []
+  for (const act of [...currentActivities]) {
+    const match = Object.entries(weaponOptionTemplates).find(([key, tmpl]) => tmpl.flags?.["bf-qol"]?.activity === act.flags?.["bf-qol"]?.activity);
+    if (match) {
+      const [key, tmpl] = match;
+      try {
+        if (!itemOptions.includes(key)) {
+          id_array.push(act._id);
+          updated = true;
+        }
+      } catch {
+        console.log('Error trying to remove activity.')
+      }
+    }
+  }
+
+  // Update Item
+  if (updated) {
+    const updatedActivities = { ...currentActivities };
+    await item.update({ "system.activities": updatedActivities });
+    for (const id of id_array) {
+      await item.update({ [`system.activities.-=${id}`]: null });
+    }
+  }
 });
