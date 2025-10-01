@@ -406,130 +406,132 @@ Hooks.on("updateItem", async (item, updateData, options, userId) => {
 
 //region Activity Tooltip for Main TAB
 
-if (game.release?.generation >= 13) {
-  Hooks.on("renderApplicationV2", async (app, html) => {
+Hooks.once("ready", () => {
+  if (game.release?.generation >= 13) {
+    Hooks.on("renderApplicationV2", async (app, html) => {
 
-    const activityTooltip = game.settings.get("bf-qol", "activityTooltip");
-    if (!activityTooltip) return;
+      const activityTooltip = game.settings.get("bf-qol", "activityTooltip");
+      if (!activityTooltip) return;
 
-    if (!(app.document instanceof Actor)) return; // Only ActorSheets
-    const rows = $(html).find("tr[data-activity][data-activity-id]").toArray();
+      if (!(app.document instanceof Actor)) return; // Only ActorSheets
+      const rows = $(html).find("tr[data-activity][data-activity-id]").toArray();
 
-    for (const element of rows) {
-      if (element.dataset.tooltipReady) continue;
-      element.dataset.tooltipReady = "true";
+      for (const element of rows) {
+        if (element.dataset.tooltipReady) continue;
+        element.dataset.tooltipReady = "true";
 
-      const { activity: activityUuid, activityId } = element.dataset;
-      if (!activityUuid && !activityId) continue;
+        const { activity: activityUuid, activityId } = element.dataset;
+        if (!activityUuid && !activityId) continue;
 
-      let itemDoc = null;
-      if (activityUuid) {
-        try {
-          itemDoc = await fromUuid(activityUuid);
-        } catch (err) {
-          console.warn("UUID not resolved:", activityUuid, err);
+        let itemDoc = null;
+        if (activityUuid) {
+          try {
+            itemDoc = await fromUuid(activityUuid);
+          } catch (err) {
+            console.warn("UUID not resolved:", activityUuid, err);
+          }
         }
-      }
-      if (!itemDoc && activityId) {
-        itemDoc = app.actor.items.get(activityId);
-      }
-      if (!itemDoc) continue;
-
-      //enrich description
-      const rawDescription = itemDoc.description?.trim() || itemDoc.parent?.description?.value || "";
-      const enrichedDescription = await foundry.applications.ux.TextEditor.implementation.enrichHTML(rawDescription, {
-        secrets: false,
-        async: true,
-        relativeTo: itemDoc.parent.parent,
-        rollData: itemDoc.parent.parent.getRollData()
-      });
-
-      const context = {
-        item: {
-          img: itemDoc.parent?.parent?.img,
-          name: itemDoc.parent?.parent?.name
-        },
-        activity: {
-          img: itemDoc.img,
-          name: itemDoc.name
-        },
-        description: enrichedDescription,
-        tags: itemDoc.parent.tags
-      };
-
-      const tooltipHtml = await foundry.applications.handlebars.renderTemplate(
-        "modules/bf-qol/templates/activity-tooltip.hbs",
-        context
-      );
-
-
-      element.setAttribute("data-tooltip", tooltipHtml);
-      element.setAttribute("data-tooltip-direction", "LEFT");
-      element.setAttribute("data-tooltip-class", "bf-qol-tooltip");
-      element.dataset.activityTooltipSet = "true";
-    }
-  });
-
-} else {
-  Hooks.on("renderActorSheet", async (app, html) => {
-    const activityTooltip = game.settings.get("bf-qol", "activityTooltip");
-    if (!activityTooltip) return;
-
-    const rows = html.find("tr[data-activity][data-activity-id]").toArray();
-
-    for (const element of rows) {
-      if (element.dataset.tooltipReady) continue;
-      element.dataset.tooltipReady = "true";
-
-      const { activity: activityUuid, activityId } = element.dataset;
-      if (!activityUuid && !activityId) continue;
-
-      let itemDoc = null;
-      if (activityUuid) {
-        try {
-          itemDoc = await fromUuid(activityUuid);
-        } catch (err) {
-          console.warn("UUID not resolved:", activityUuid, err);
+        if (!itemDoc && activityId) {
+          itemDoc = app.actor.items.get(activityId);
         }
+        if (!itemDoc) continue;
+
+        //enrich description
+        const rawDescription = itemDoc.description?.trim() || itemDoc.parent?.description?.value || "";
+        const enrichedDescription = await foundry.applications.ux.TextEditor.implementation.enrichHTML(rawDescription, {
+          secrets: false,
+          async: true,
+          relativeTo: itemDoc.parent.parent,
+          rollData: itemDoc.parent.parent.getRollData()
+        });
+
+        const context = {
+          item: {
+            img: itemDoc.parent?.parent?.img,
+            name: itemDoc.parent?.parent?.name
+          },
+          activity: {
+            img: itemDoc.img,
+            name: itemDoc.name
+          },
+          description: enrichedDescription,
+          tags: itemDoc.parent.tags
+        };
+
+        const tooltipHtml = await foundry.applications.handlebars.renderTemplate(
+          "modules/bf-qol/templates/activity-tooltip.hbs",
+          context
+        );
+
+
+        element.setAttribute("data-tooltip", tooltipHtml);
+        element.setAttribute("data-tooltip-direction", "RIGHT");
+        element.setAttribute("data-tooltip-class", "bf-qol-tooltip");
+        element.dataset.activityTooltipSet = "true";
       }
-      if (!itemDoc && activityId) {
-        itemDoc = app.actor.items.get(activityId);
+    });
+
+  } else {
+    Hooks.on("renderActorSheet", async (app, html) => {
+      const activityTooltip = game.settings.get("bf-qol", "activityTooltip");
+      if (!activityTooltip) return;
+
+      const rows = html.find("tr[data-activity][data-activity-id]").toArray();
+
+      for (const element of rows) {
+        if (element.dataset.tooltipReady) continue;
+        element.dataset.tooltipReady = "true";
+
+        const { activity: activityUuid, activityId } = element.dataset;
+        if (!activityUuid && !activityId) continue;
+
+        let itemDoc = null;
+        if (activityUuid) {
+          try {
+            itemDoc = await fromUuid(activityUuid);
+          } catch (err) {
+            console.warn("UUID not resolved:", activityUuid, err);
+          }
+        }
+        if (!itemDoc && activityId) {
+          itemDoc = app.actor.items.get(activityId);
+        }
+        if (!itemDoc) continue;
+
+        //enrich description
+        const rawDescription = itemDoc.description?.trim() || itemDoc.parent?.description?.value || "";
+        const enrichedDescription = await TextEditor.enrichHTML(rawDescription, {
+          secrets: false,
+          async: true,
+          relativeTo: itemDoc.parent.parent,
+          rollData: itemDoc.parent.parent.getRollData()
+        });
+
+        const context = {
+          item: {
+            img: itemDoc.parent?.parent?.img,
+            name: itemDoc.parent?.parent?.name
+          },
+          activity: {
+            img: itemDoc.img,
+            name: itemDoc.name
+          },
+          description: enrichedDescription,
+          tags: Array.from((itemDoc.parent.parent.system.chatTags ?? itemDoc.parent.chatTags).entries())
+            .map(([key, label]) => ({ key, label }))
+            .filter(t => t.label)
+        };
+
+        const tooltipHtml = await renderTemplate(
+          "modules/bf-qol/templates/activity-tooltip.hbs",
+          context
+        );
+
+        element.setAttribute("data-tooltip", tooltipHtml);
+        element.setAttribute("data-tooltip-direction", "RIGHT");
+        element.setAttribute("data-tooltip-class", "bf-qol-tooltip");
+        element.dataset.activityTooltipSet = "true";
       }
-      if (!itemDoc) continue;
-
-      //enrich description
-      const rawDescription = itemDoc.description?.trim() || itemDoc.parent?.description?.value || "";
-      const enrichedDescription = await TextEditor.enrichHTML(rawDescription, {
-        secrets: false,
-        async: true,
-        relativeTo: itemDoc.parent.parent,
-        rollData: itemDoc.parent.parent.getRollData()
-      });
-
-      const context = {
-        item: {
-          img: itemDoc.parent?.parent?.img,
-          name: itemDoc.parent?.parent?.name
-        },
-        activity: {
-          img: itemDoc.img,
-          name: itemDoc.name
-        },
-        description: enrichedDescription,
-        tags: Array.from((itemDoc.parent.parent.system.chatTags ?? itemDoc.parent.chatTags).entries())
-          .map(([key, label]) => ({ key, label }))
-          .filter(t => t.label)
-      };
-
-      const tooltipHtml = await renderTemplate(
-        "modules/bf-qol/templates/activity-tooltip.hbs",
-        context
-      );
-
-      element.setAttribute("data-tooltip", tooltipHtml);
-      element.setAttribute("data-tooltip-direction", "RIGHT");
-      element.setAttribute("data-tooltip-class", "bf-qol-tooltip");
-      element.dataset.activityTooltipSet = "true";
-    }
-  });
-}
+    });
+  }
+});
