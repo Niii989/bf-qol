@@ -4,6 +4,8 @@ Artwork from Game-Icons.net
 
 Licensed from Game-Icons.net under CC BY 3.0 license unless otherwise noted. These icons are packaged with and provided for use in the Black Flag QOL module under the terms of their license, which can be found here: https://creativecommons.org/licenses/by/3.0/
 
+clockwise-rotation.svg - "Clockwise rotation" by Delapouite
+	(https://game-icons.net/1x1/delapouite/clockwise-rotation.html)
 weapon-options/drop-weapon.svg - "Drop weapon" by Skoll
 	(https://game-icons.net/1x1/skoll/drop-weapon.html)
 weapon-options/explosive-materials.svg - "Explosive materials" by Lorc

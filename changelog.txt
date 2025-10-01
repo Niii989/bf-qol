@@ -1,0 +1,3 @@
+- Fixed an issue where spells would sometimes fail to cast.
+- Added a reaction usage effect when in combat and an actor takes an action outside its turn.
+- Added an activity tooltip to display an activity’s description in the actor’s main tab.

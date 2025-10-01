@@ -10,9 +10,27 @@ import { weaponOptionTemplates } from "./data/weapon-option-templates.js";
 function registerSettings() {
   const MODULE_ID = "bf-qol";
 
+  game.settings.register(MODULE_ID, "activityTooltip", {
+    name: "Enable Activity Tooltip on Actor Main Tab",
+    hint: "Shows an activity description when you hover the activity in the Actor Main Tab.",
+    scope: "world",
+    config: true,
+    default: true,
+    type: Boolean
+  });
+
   game.settings.register(MODULE_ID, "autoConcentration", {
     name: "Enable Auto-Concentration Effect",
     hint: "Activities with the Concentration tag will automatically apply the effect.",
+    scope: "world",
+    config: true,
+    default: true,
+    type: Boolean
+  });
+
+  game.settings.register(MODULE_ID, "autoReaction", {
+    name: "Enable Reaction Effect",
+    hint: "Automatically applies a Reaction effect whenever the actor uses an activity outside of their turn.",
     scope: "world",
     config: true,
     default: true,
@@ -36,38 +54,122 @@ function registerSettings() {
     default: false,
     type: Boolean
   });
+
 }
 
 Hooks.once("init", () => {
   registerSettings();
 });
 
-//region Concentration
+// Add Warning Template to a List of BlackFlag Dialogs
 Hooks.once("init", () => {
-  //Add new template
-  const parts = BlackFlag.applications.activity.ActivityActivationDialog.PARTS;
-  BlackFlag.applications.activity.ActivityActivationDialog.PARTS = {
-    concentrating: {
-      template: "modules/BF-QOL/templates/activity-activation-concentrating.hbs"
-    },
-    ...parts
+
+  const dialogs = {
+    "BlackFlag.applications.activity.ActivityActivationDialog":
+      BlackFlag.applications.activity.ActivityActivationDialog,
+    "BlackFlag.applications.activity.SummonActivationDialog":
+      BlackFlag.applications.activity.SummonActivationDialog,
+    "BlackFlag.applications.dice.BasicRollConfigurationDialog":
+      BlackFlag.applications.dice.BasicRollConfigurationDialog,
+    "BlackFlag.applications.dice.DamageRollConfigurationDialog":
+      BlackFlag.applications.dice.DamageRollConfigurationDialog,
   };
 
-  // Add concentration variables to context BF
-  libWrapper.register('bf-qol', 'BlackFlag.applications.activity.ActivityActivationDialog.prototype._preparePartContext', async function (wrapped, partId, context, options) {
-    context = await wrapped(partId, context, options);
+  for (const [path, DialogClass] of Object.entries(dialogs)) {
+    //Add new template to dialogs
+    const parts = DialogClass.PARTS;
+    DialogClass.PARTS = {
+      bf_qol_warning: {
+        template: "modules/bf-qol/templates/activity-activation-warning.hbs"
+      },
+      ...parts
+    };
 
-    if (partId === "concentrating") {
-      context.concentrationNote = this.config.concentrationNote;
-      context.concentration = !!this.config.concentration;
-    }
+    libWrapper.register("bf-qol",
+      `${path}.prototype._preparePartContext`, async function (wrapped, partId, context, options) {
+        context = await wrapped(partId, context, options);
 
-    return context;
-  }, 'WRAPPER');
+        if (partId === "bf_qol_warning") {
+          // Concentration
+          context.concentrationNote = this.config.concentrationNote;
+          context.concentration = !!this.config.concentration;
+
+          // Reaction
+          context.useReaction = !!this.config.useReaction ?? true; // default true
+          context.reactionUsed = !!this.config.reactionUsed;
+          context.reaction = !!this.config.reaction;
+        }
+        return context;
+      },
+      "WRAPPER"
+    );
+  }
 
 });
 
-Hooks.on("blackFlag.preActivateActivity", async (activity, activationConfig, dialogConfig, messageConfig) => {
+//region Reaction Tracking
+
+//Create reaction used effect
+Hooks.on("blackFlag.preActivateActivity", async (activity) => {
+  const autoReaction = game.settings.get("bf-qol", "autoReaction");
+  if (!autoReaction) return;
+
+  const combat = game.combat;
+  if (!combat) return; // Only works if combat is active
+
+  const actor = activity.actor;
+  if (!actor) return;
+
+  console.log(activity);
+
+  // Ignore Legendary or Free actions
+  if (activity.activation?.type === "legendary" || activity.activation?.type === "free") return;
+
+  // Check if it's outside actor's turn
+  const currentCombatant = combat.combatant;
+  if (currentCombatant?.actor?.id === actor.id) return;
+
+  const effectName = "Reaction Used";
+  const existing = actor.effects.find(e => e.name === effectName);
+
+  console.log(existing);
+
+  if (!existing) {
+    const effectData = {
+      name: "Reaction Used",
+      icon: "modules/bf-qol/artwork/clockwise-rotation.svg",
+      origin: activity.item?.uuid ?? actor.uuid,
+      duration: { rounds: 2 },
+      flags: { "bf-qol": { reaction: true } }
+    };
+    await actor.createEmbeddedDocuments("ActiveEffect", [effectData]);
+  }
+
+});
+
+// Remove the effect at the start of actor's turn
+Hooks.on("updateCombat", async (combat, update, options, userId) => {
+  if (!("turn" in update)) return;
+  const combatant = combat.combatant;
+  if (!combatant?.actor) return;
+
+  const effect = combatant.actor.effects.find(e => e.name === "Reaction Used");
+  if (effect) await effect.delete();
+});
+
+// Clean up when combat ends
+Hooks.on("deleteCombat", async (combat) => {
+  for (const c of combat.combatants) {
+    const actor = c.actor;
+    if (!actor) continue;
+    const effect = actor.effects.find(e => e.name === "Reaction Used");
+    if (effect) await effect.delete();
+  }
+});
+//endregion
+
+//region Concentration
+Hooks.on("blackFlag.preActivateActivity", async (activity, activationConfig) => {
   //Check if activity requires concentration, checks if actor is concentrating and render message if wants to replace concentration
   activationConfig.concentration = false;
   const actor = activity.actor;
@@ -251,7 +353,7 @@ Hooks.on("updateItem", async (item, updateData, options, userId) => {
   // Check if the item is on a player character sheet
   const actor = item.actor;
   if (!actor) return;
-  if (actor.type !== "pc") return; 
+  if (actor.type !== "pc") return;
 
   const itemOptions = foundry.utils.getProperty(updateData, "system.options") ?? item.system.options ?? [];
   const currentActivities = item.system.activities ?? {};
@@ -301,3 +403,133 @@ Hooks.on("updateItem", async (item, updateData, options, userId) => {
     }
   }
 });
+
+//region Activity Tooltip for Main TAB
+
+if (game.release?.generation >= 13) {
+  Hooks.on("renderApplicationV2", async (app, html) => {
+
+    const activityTooltip = game.settings.get("bf-qol", "activityTooltip");
+    if (!activityTooltip) return;
+
+    if (!(app.document instanceof Actor)) return; // Only ActorSheets
+    const rows = $(html).find("tr[data-activity][data-activity-id]").toArray();
+
+    for (const element of rows) {
+      if (element.dataset.tooltipReady) continue;
+      element.dataset.tooltipReady = "true";
+
+      const { activity: activityUuid, activityId } = element.dataset;
+      if (!activityUuid && !activityId) continue;
+
+      let itemDoc = null;
+      if (activityUuid) {
+        try {
+          itemDoc = await fromUuid(activityUuid);
+        } catch (err) {
+          console.warn("UUID not resolved:", activityUuid, err);
+        }
+      }
+      if (!itemDoc && activityId) {
+        itemDoc = app.actor.items.get(activityId);
+      }
+      if (!itemDoc) continue;
+
+      //enrich description
+      const rawDescription = itemDoc.description?.trim() || itemDoc.parent?.description?.value || "";
+      const enrichedDescription = await foundry.applications.ux.TextEditor.implementation.enrichHTML(rawDescription, {
+        secrets: false,
+        async: true,
+        relativeTo: itemDoc.parent.parent,
+        rollData: itemDoc.parent.parent.getRollData()
+      });
+
+      const context = {
+        item: {
+          img: itemDoc.parent?.parent?.img,
+          name: itemDoc.parent?.parent?.name
+        },
+        activity: {
+          img: itemDoc.img,
+          name: itemDoc.name
+        },
+        description: enrichedDescription,
+        tags: itemDoc.parent.tags
+      };
+
+      const tooltipHtml = await foundry.applications.handlebars.renderTemplate(
+        "modules/bf-qol/templates/activity-tooltip.hbs",
+        context
+      );
+
+
+      element.setAttribute("data-tooltip", tooltipHtml);
+      element.setAttribute("data-tooltip-direction", "LEFT");
+      element.setAttribute("data-tooltip-class", "bf-qol-tooltip");
+      element.dataset.activityTooltipSet = "true";
+    }
+  });
+
+} else {
+  Hooks.on("renderActorSheet", async (app, html) => {
+    const activityTooltip = game.settings.get("bf-qol", "activityTooltip");
+    if (!activityTooltip) return;
+
+    const rows = html.find("tr[data-activity][data-activity-id]").toArray();
+
+    for (const element of rows) {
+      if (element.dataset.tooltipReady) continue;
+      element.dataset.tooltipReady = "true";
+
+      const { activity: activityUuid, activityId } = element.dataset;
+      if (!activityUuid && !activityId) continue;
+
+      let itemDoc = null;
+      if (activityUuid) {
+        try {
+          itemDoc = await fromUuid(activityUuid);
+        } catch (err) {
+          console.warn("UUID not resolved:", activityUuid, err);
+        }
+      }
+      if (!itemDoc && activityId) {
+        itemDoc = app.actor.items.get(activityId);
+      }
+      if (!itemDoc) continue;
+
+      //enrich description
+      const rawDescription = itemDoc.description?.trim() || itemDoc.parent?.description?.value || "";
+      const enrichedDescription = await TextEditor.enrichHTML(rawDescription, {
+        secrets: false,
+        async: true,
+        relativeTo: itemDoc.parent.parent,
+        rollData: itemDoc.parent.parent.getRollData()
+      });
+
+      const context = {
+        item: {
+          img: itemDoc.parent?.parent?.img,
+          name: itemDoc.parent?.parent?.name
+        },
+        activity: {
+          img: itemDoc.img,
+          name: itemDoc.name
+        },
+        description: enrichedDescription,
+        tags: Array.from((itemDoc.parent.parent.system.chatTags ?? itemDoc.parent.chatTags).entries())
+          .map(([key, label]) => ({ key, label }))
+          .filter(t => t.label)
+      };
+
+      const tooltipHtml = await renderTemplate(
+        "modules/bf-qol/templates/activity-tooltip.hbs",
+        context
+      );
+
+      element.setAttribute("data-tooltip", tooltipHtml);
+      element.setAttribute("data-tooltip-direction", "RIGHT");
+      element.setAttribute("data-tooltip-class", "bf-qol-tooltip");
+      element.dataset.activityTooltipSet = "true";
+    }
+  });
+}

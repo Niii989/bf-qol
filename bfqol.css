@@ -1,0 +1,106 @@
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) {
+  border: 3px solid rgb(45, 82, 129);
+  border-radius: 6px;
+  background: rgb(255, 255, 255);
+  color: rgb(0, 0, 0);
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-inline-end: -8px;
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .header .icon-wrapper {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .header .item-icon {
+  width: 64px;
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .header .activity-icon {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 24px;
+  height: 24px;
+  border: 1px solid black;
+  background-color: white;
+  border-radius: 50%;
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .activity-name {
+  font-weight: bold;
+  font-size: 0.85rem;
+  line-height: 1rem;
+  margin-top: -4px;
+  display: block;
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .description {
+  position: relative;
+  max-height: 450px;
+  overflow: hidden;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--bf-blue, rgb(45, 82, 129)) transparent;
+  font-size: var(--font-size-13, 13px);
+  line-height: normal;
+  text-align: start;
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .description::-webkit-scrollbar-track {
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .description::-webkit-scrollbar-thumb {
+  border: none;
+  background: var(--bf-blue, rgb(45, 82, 129));
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .description.overflowing {
+  -webkit-mask-image: linear-gradient(to bottom, black 90%, transparent);
+  mask-image: linear-gradient(to bottom, black 90%, transparent);
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip).locked-tooltip .description {
+  overflow-y: scroll;
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip).locked-tooltip .description.overflowing {
+  -webkit-mask-image: initial;
+  mask-image: initial;
+}
+
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .tags {
+	font-size: 0.625rem;
+	font-size: var(--font-size-10);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .tags .tag {
+		border: 1px solid rgb(180, 180, 180);
+		/*border: 1px solid var(--bf-color-border-gray);*/
+		border-radius: 3px;
+		padding-inline: 4px;
+		background: rgba(255, 255, 255, 0.5);
+		/*background: var(--bf-background-color-half-white);*/
+		box-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+	}
+.bf-qol-tooltip:is(#tooltip, .locked-tooltip) .tags .tag:has(.component) {
+		display: flex;
+		gap: 2px;
+	}
