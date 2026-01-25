@@ -13,6 +13,10 @@ A module designed to enhance the management of the Concentration condition when 
 
 ![Example Weapon Activities.](img/weapon-activities-example.webp)
 
+- **Doom Points tracker**. Includes support for custom effect options, a player-facing view, and the ability for players to spend Doom Points and choose which effect to trigger.
+
+![Example Doom Points.](img/doom-points-example.webp)
+
 ## Installation
 ### Method 1
 1. Launch Foundry
