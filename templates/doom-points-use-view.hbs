@@ -1,0 +1,43 @@
+<form class="bf-qol">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Used</th>
+                {{#if isGM}}
+                <th>Actions</th>
+                {{/if}}
+            </tr>
+        </thead>
+
+
+        <tbody>
+            {{#each effects}}
+            <tr class="{{#if (eq state 0)}}effect-used{{/if}}">
+                <td>{{description}}</td>
+
+                <td>
+                    {{#if (eq state -1)}}
+                    <i class="fas fa-infinity"></i>
+                    {{else if (eq state 0)}}
+                    <i class="fas fa-check"></i> Used
+                    {{else}}
+                    1 / Encounter
+                    {{/if}}
+                </td>
+
+                {{#if ../isGM}}
+                <td>
+                    <button type="button" class="use-effect {{#if (eq state 0)}}disabled{{/if}}"
+                        data-action="use-effect" data-id="{{id}}" {{#if (eq state 0)}}disabled{{/if}}>
+                        <i class="fas {{#if (eq state 0)}}fa-skull{{else}}fa-bolt{{/if}}"></i>
+                    </button>
+                </td>
+                {{/if}}
+            </tr>
+            {{/each}}
+        </tbody>
+
+
+    </table>
+</form>

@@ -1,0 +1,24 @@
+<form class="bf-qol">
+  <div class="form-group">
+    <label>Description</label>
+      <input type="text" name="description" value="{{description}}" required>
+  </div>
+
+  <div class="form-group">
+    <label>
+      One use per encounter
+    </label>
+    <div class="form-field">
+      <input type="checkbox" name="onePerEncounter" {{checked onePerEncounter}}>
+    </div>
+  </div>
+
+  <footer>
+    <button type="button" data-action="save-effect">
+      <i class="fas fa-save"></i> Save
+    </button>
+    <button type="button" data-action="close-effect">
+      Cancel
+    </button>
+  </footer>
+</form>

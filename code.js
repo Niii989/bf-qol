@@ -1,3 +1,6 @@
+import { DoomPointsSettingsApp } from "./data/doom-settings.js";
+import { DoomPointsViewUse } from "./data/doom-settings.js";
+
 // Verify if LibWrapper is installed
 Hooks.once('ready', () => {
   if (!game.modules.get('lib-wrapper')?.active && game.user.isGM)
@@ -51,8 +54,33 @@ function registerSettings() {
     hint: "Add and delete Weapon Options Activites from a Weapon in a PC Sheet.",
     scope: "world",
     config: true,
-    default: false,
+    default: true,
     type: Boolean
+  });
+  //Doom points Menu
+  game.settings.register(MODULE_ID, "doomPoint", {
+    name: "Enable Doom Point Tracker",
+    hint: "Shows a Doom Points Tracker in the Combat Encounters Tab.",
+    scope: "world",
+    config: false,
+    default: true,
+    type: Boolean
+  });
+
+  game.settings.register("bf-qol", "doomEffects", {
+    scope: "world",
+    config: false,
+    type: Array,
+    default: [] // [{id, description, onePerEncounter}]
+  });
+
+  game.settings.registerMenu(MODULE_ID, "doomPointsMenu", {
+    name: "Doom Points",
+    label: "Configure Doom Points",
+    hint: "Open the Doom Points configuration window.",
+    icon: "fas fa-skull",
+    type: DoomPointsSettingsApp,
+    restricted: true
   });
 
 }
@@ -107,6 +135,111 @@ Hooks.once("init", () => {
 
 });
 
+// region Doom Points Tracker
+
+Hooks.on("createCombat", async (combat) => {
+  if (game.user.isGM) {
+    const effects = game.settings.get("bf-qol", "doomEffects");
+
+    const data = {};
+    for (const e of effects) {
+      data[e.id] = e.onePerEncounter ? 1 : -1;
+    }
+
+    await combat.setFlag("bf-qol", "effects_used", data);
+  }
+});
+
+Hooks.on("updateSetting", async (setting) => {
+  if (setting.key !== "bf-qol.doomEffects") return;
+
+  const effects = setting.value;
+
+  for (const combat of game.combats) {
+    const used = combat.getFlag("bf-qol", "effects_used") ?? {};
+
+    for (const e of effects) {
+      if (!(e.id in used)) {
+        used[e.id] = e.onePerEncounter ? 1 : -1;
+      }
+    }
+
+    await combat.setFlag("bf-qol", "effects_used", used);
+  }
+});
+
+Hooks.on("renderCombatTracker", (app, html) => {
+  let container = html.querySelector(".bf-qol-doom");
+
+  const doomPoint = game.settings.get("bf-qol", "doomPoint");
+  if (!doomPoint) {
+    if (container) container.remove();
+    return;
+  }
+
+  const combat = game.combat;
+  if (!combat) {
+    if (container) container.remove();
+    return;
+  }
+
+  const isGM = game.user.isGM;
+  const doomSpent = combat.getFlag("bf-qol", "doomSpent") ?? 0;
+  const doomMax = combat.getFlag("bf-qol", "doomMax") ?? 0;
+
+  //Update Tracker if exists
+  if (container) {
+    container.querySelector(".bf-qol-doom-value").textContent = `${doomMax - doomSpent} / ${doomMax}`;
+    return;
+  }
+
+  //If Doom Points Tracker doesn't exists, create it.
+
+  container = document.createElement("div");
+  container.className = "bf-qol-doom black-flag";
+
+  container.innerHTML = `
+    ${isGM ?
+      `<button class="bf-qol-doom-btn"
+        data-tooltip="Spend Doom Point"
+        data-tooltip-class="black-flag bf-qol-tooltip">
+        <i class="fas fa-skull"></i>
+      </button>` :
+      `<button class="bf-qol-doom-btn"
+        data-tooltip="See Doom Point Effects"
+        data-tooltip-class="black-flag bf-qol-tooltip">
+        <i class="fas fa-skull"></i>
+      </button>`}
+    Doom Points: <span class="bf-qol-doom-value">${doomMax - doomSpent} / ${doomMax}</span>
+    ${isGM ?
+      `<button class="bf-qol-doom-settings" data-tooltip="Doom Points Settings">
+        <i class="fas fa-cog"></i>
+      </button>` : ""}
+  `;
+
+  html.querySelector("header")?.after(container);
+
+  // Open View Use Doom Points
+  container.querySelector(".bf-qol-doom-btn")
+    .addEventListener("click", () => {
+      new DoomPointsViewUse().render(true);
+    });
+
+  // Open Doom Point Settings
+  if (game.user.isGM) {
+    container.querySelector(".bf-qol-doom-settings")
+      .addEventListener("click", () => {
+        new DoomPointsSettingsApp().render(true);
+      });
+  }
+});
+
+
+// endregion
+
+
+
+
 //region Reaction Tracking
 
 //Create reaction used effect
@@ -120,8 +253,6 @@ Hooks.on("blackFlag.preActivateActivity", async (activity) => {
   const actor = activity.actor;
   if (!actor) return;
 
-  console.log(activity);
-
   // Ignore Legendary or Free actions
   if (activity.activation?.type === "legendary" || activity.activation?.type === "free") return;
 
@@ -131,8 +262,6 @@ Hooks.on("blackFlag.preActivateActivity", async (activity) => {
 
   const effectName = "Reaction Used";
   const existing = actor.effects.find(e => e.name === effectName);
-
-  console.log(existing);
 
   if (!existing) {
     const effectData = {
@@ -455,7 +584,9 @@ Hooks.once("ready", () => {
             name: itemDoc.name
           },
           description: enrichedDescription,
-          tags: itemDoc.parent.tags
+          tags: Array.from((itemDoc.parent.parent.system.chatTags ?? itemDoc.parent.chatTags).entries())
+            .map(([key, label]) => ({ key, label }))
+            .filter(t => t.label)
         };
 
         const tooltipHtml = await foundry.applications.handlebars.renderTemplate(

@@ -1,5 +1,246 @@
+/*Styles for doom points*/
+.bf-qol-doom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem;
+  margin-bottom: 0.25rem;
+  min-height: 40px;
+  background: #2D5281;
+  /*border-radius: 6px;*/
+}
+
+.bf-qol-doom-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.bf-qol-doom-btn:hover {
+  color: var(--bf-color-warning, black);
+}
+
+.bf-qol-doom-value {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/*Styles for menu options*/
+.application .window-content {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.bf-qol .form-group {
+  color: var(--color-text-primary);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 1.2em;
+  min-width: 500px;
+}
+
+.bf-qol .form-group > label {
+  flex: 1 1 75%;
+  font-weight: 600;
+  margin-bottom: 0.25em;
+}
+
+.bf-qol .form-field {
+  flex: 1 1 25%;
+  margin-top: 0.25em;
+}
+
+.bf-qol input[type="number"],
+.bf-qol input[type="text"],
+.bf-qol select {
+  width: 100%;
+  height: 30px;
+  padding: 4px 6px;
+  font-size: 14px;
+  border: 1px solid var(--input-border-color);
+  border-radius: 3px;
+  background: var(--input-background-color);
+  color: var(--input-text-color);
+}
+
+.bf-qol input:focus,
+.bf-qol select:focus {
+  outline: none;
+  border-color: #2D5281;
+  box-shadow: 0 0 0 1px #2D5281;
+}
+
+.bf-qol .hint {
+  width: 100%;
+  margin-top: 0.35em;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-form-hint);
+  font-style: italic;
+}
+
+.bf-qol .table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.bf-qol .table thead th {
+  padding: 4px 6px;            
+  text-align: center;
+  font-weight: bold;
+  border-bottom: 1px solid #666;
+  background: #2D5281;
+  color: #e0e0e0;
+  vertical-align: middle;
+}
+
+.bf-qol .table thead th:last-child {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.bf-qol .table tbody td {
+  color: var(--color-text-primary);
+  padding: 6px 8px;
+  border-bottom: 1px solid #444;
+  vertical-align: middle;
+}
+
+.bf-qol .table tbody tr:nth-child(odd) {
+  background: var(--table-row-color-odd);
+}
+
+.bf-qol .table tbody tr:nth-child(even) {
+  background: var(--table-row-color-even);
+}
+
+.bf-qol .table tbody tr:hover {
+  background: var(--table-row-color-highlight);;
+}
+
+.table th:nth-child(1),
+.table td:nth-child(1) {
+  width: 60%;
+}
+
+.table th:nth-child(2),
+.table td:nth-child(2) {
+  text-align: center;
+  width: 20%;
+}
+
+.bf-qol .table th:last-child,
+.bf-qol .table td:last-child {
+  width: 20%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.bf-qol .table button {
+  display: inline-flex;        
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  margin: 0 2px;
+  font-size: 12px;
+  border-radius: 3px;
+  border: 1px solid var(--button-border-color);
+  background: var(--button-background-color);
+  color: var(--button-text-color);
+  cursor: var(--cursor-pointer);
+}
+
+.bf-qol .table button i {
+  pointer-events: none;
+}
+
+.bf-qol .table button:hover {
+  background: var(--button-hover-background-color);
+}
+
+.bf-qol .table .add-effect {
+  margin-left: 6px;
+  padding: 2px 5px;
+  font-size: 11px;
+}
+
+.bf-qol footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 10px;
+  margin-top: 12px;
+  border-top: 1px solid #444;
+}
+
+.bf-qol footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 13px;
+  border-radius: 3px;
+  border: 1px solid var(--button-border-color);
+  background: var(--button-background-color);
+  color: var(--button-text-color);
+  cursor: var(--cursor-pointer);
+}
+
+.bf-qol footer button i {
+  font-size: 12px;
+}
+
+/* Hover */
+.bf-qol footer button:hover {
+  background: var(--button-hover-background-color);
+}
+
+/* Button Save */
+.bf-qol footer button[data-action="save"] {
+  background: #2d5281;
+  border-color: #24446b;
+}
+
+.bf-qol footer button[data-action="save"]:hover {
+  background: #3a6aa5;
+}
+
+/* Use Effects */
+.bf-qol .bf-doom-msg {
+  border-left: 4px solid #aa0000;
+  padding-left: 8px;
+  font-size: 13px;
+}
+
+.bf-qol .bf-effect.used {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+.bf-qol .bf-effect.spend-anim {
+  animation: bfPulse 0.4s ease;
+}
+
+@keyframes bfPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); color: #ff4444; }
+  100% { transform: scale(1); }
+}
+
+/*Styles for tooltip*/
+.bf-qol-tooltip {
+  background: var(--bf-background-color-dark-blue);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
 .bf-qol-tooltip:is(#tooltip, .locked-tooltip) {
-  border: 3px solid rgb(45, 82, 129);
+  border: 3px solid #2D5281;
   border-radius: 6px;
   background: rgb(255, 255, 255);
   color: rgb(0, 0, 0);
@@ -49,13 +290,12 @@
 }
 
 .bf-qol-tooltip:is(#tooltip, .locked-tooltip) .description {
-  position: relative;
-  max-height: 450px;
+  max-block-size: 450px;
   overflow: hidden;
   scrollbar-width: thin;
   scrollbar-gutter: stable;
-  scrollbar-color: var(--bf-blue, rgb(45, 82, 129)) transparent;
-  font-size: var(--font-size-13, 13px);
+  scrollbar-color: #2D5281 transparent;
+  font-size: 13px;
   line-height: normal;
   text-align: start;
 }
@@ -67,7 +307,7 @@
 
 .bf-qol-tooltip:is(#tooltip, .locked-tooltip) .description::-webkit-scrollbar-thumb {
   border: none;
-  background: var(--bf-blue, rgb(45, 82, 129));
+  background: #2D5281;
 }
 
 .bf-qol-tooltip:is(#tooltip, .locked-tooltip) .description.overflowing {
@@ -86,18 +326,15 @@
 
 .bf-qol-tooltip:is(#tooltip, .locked-tooltip) .tags {
 	font-size: 0.625rem;
-	font-size: var(--font-size-10);
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px;
 }
 .bf-qol-tooltip:is(#tooltip, .locked-tooltip) .tags .tag {
 		border: 1px solid rgb(180, 180, 180);
-		/*border: 1px solid var(--bf-color-border-gray);*/
 		border-radius: 3px;
 		padding-inline: 4px;
 		background: rgba(255, 255, 255, 0.5);
-		/*background: var(--bf-background-color-half-white);*/
 		box-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
 	}
 .bf-qol-tooltip:is(#tooltip, .locked-tooltip) .tags .tag:has(.component) {

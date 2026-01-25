@@ -1,0 +1,70 @@
+<form class="bf-qol">
+
+  <div class="form-group">
+    <label>Enable Doom Point Tracker</label>
+    <div class="form-field">
+      <input type="checkbox" name="doomPoint" {{checked doomPoint}}>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Maximun Quantity</label>
+    <div class="form-field">
+      <input type="number" name="max" value="{{max}}">
+    </div>
+    <!---
+    <p class="hint">
+      "This is a test description, i dont know what to put here."
+    </p>
+    !--->
+  </div>
+
+  <div class="form-group">
+    <label>Spent Uses</label>
+    <div class="form-field">
+      <input type="number" name="spent" value="{{spent}}">
+    </div>
+  </div>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th>Uses</th>
+        <th>
+          Actions
+          <button type="button" class="add-effect" data-action="add-effect">
+            <i class="fas fa-plus"></i>
+          </button>
+        </th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {{#each effects}}
+      <tr>
+        <td>{{description}}</td>
+        <td>{{#if onePerEncounter}}1 / Encounter{{else}}<i class="fas fa-infinity"></i>{{/if}}</td>
+        <td>
+          <button type="button" class="edit-effect" data-action="edit-effect" data-id="{{id}}">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button type="button" class="delete-effect" data-action="delete-effect" data-id="{{id}}">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+
+  <footer>
+    <button type="button" data-action="save">
+      <i class="fas fa-save"></i> Save
+    </button>
+    <button type="button" data-action="close">
+      Cancel
+    </button>
+  </footer>
+
+</form>
