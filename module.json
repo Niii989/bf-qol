@@ -2,9 +2,10 @@
   "id": "bf-qol",
   "title": "Black Flag QOL",
   "description": "Automates Concentration effects, message CON saves, related warnings and other things in Black Flag.",
-  "version": "0.0.4",
+  "version": "0.0.5",
+  "socket": true,
   "compatibility": {
-    "minimum": "12",
+    "minimum": "13",
     "verified": "13"
   },
   "authors": [
@@ -33,6 +34,14 @@
           "minimum": "1.0.0.0",
           "verified": "1.13.3.0"
         }
+      },
+      {
+        "id": "socketlib",
+        "type": "module",
+        "compatibility": {
+          "minimum": "1.0.0",
+          "verified": "1.1.4"
+        }
       }
     ],
     "conflicts": []
@@ -42,6 +51,6 @@
   ],
   "styles": ["./bfqol.css"], 
   "manifest": "https://github.com/Niii989/bf-qol/releases/latest/download/module.json",
-  "download": "https://github.com/Niii989/bf-qol/releases/download/0.0.4/bf-qol.zip",
+  "download": "https://github.com/Niii989/bf-qol/releases/download/0.0.5/bf-qol.zip",
   "bugs": "https://github.com/Niii989/itempiles-bf/issues"
 }

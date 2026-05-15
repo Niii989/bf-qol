@@ -3,8 +3,13 @@ import { DoomPointsViewUse } from "./data/doom-settings.js";
 
 // Verify if LibWrapper is installed
 Hooks.once('ready', () => {
-  if (!game.modules.get('lib-wrapper')?.active && game.user.isGM)
+  if (!game.modules.get('lib-wrapper')?.active && game.user.isGM) {
     ui.notifications.error("BF QOL requires the 'libWrapper' module. Please install and activate it.");
+  }
+  if (!game.modules.get("socketlib")?.active && game.user.isGM) {
+    ui.notifications.error("BF QOL requires the 'SocketLib' module. Please install and activate it.");
+  }
+
 });
 
 import { weaponOptionTemplates } from "./data/weapon-option-templates.js";
@@ -31,9 +36,27 @@ function registerSettings() {
     type: Boolean
   });
 
+  game.settings.register(MODULE_ID, "autoDeleteConcentrationEffects", {
+    name: "Enable Auto-Delete Concentration Effects",
+    hint: "Automatically deletes linked activity effects when their concentration effect is removed.",
+    scope: "world",
+    config: true,
+    default: true,
+    type: Boolean
+  });
+
   game.settings.register(MODULE_ID, "autoReaction", {
     name: "Enable Reaction Effect",
     hint: "Automatically applies a Reaction effect whenever the actor uses an activity outside of their turn.",
+    scope: "world",
+    config: true,
+    default: true,
+    type: Boolean
+  });
+
+  game.settings.register(MODULE_ID, "autoApplyActivityEffects", {
+    name: "Enable Auto-Apply Linked Activity Effects",
+    hint: "Automatically applies linked activity effects to the targeted or selected actors.",
     scope: "world",
     config: true,
     default: true,
@@ -87,6 +110,180 @@ function registerSettings() {
 
 Hooks.once("init", () => {
   registerSettings();
+});
+
+function bfQolIsPrimaryGM() {
+  const activeGMs = game.users.filter(user => user.active && user.isGM);
+  return activeGMs.length && game.user.id === activeGMs.sort((a, b) => a.id.localeCompare(b.id))[0].id;
+}
+
+function bfQolGetActivityEffects(activity) {
+  return activity?.system?.effects?.map(data => data.effect).filter(effect => effect) ?? [];
+}
+
+function bfQolEffectHasDuration(effectData) {
+  const duration = effectData.duration ?? {};
+  return ["seconds", "rounds", "turns"].some(key => Number(duration[key]) > 0);
+}
+
+function bfQolDurationToSeconds(duration) {
+  const value = Number(duration?.value);
+  const unit = duration?.unit ?? duration?.units;
+  if (!value || !unit) return null;
+
+  const unitToSeconds = {
+    turn: 6,
+    round: 6,
+    minute: 60,
+    hour: 3600,
+    day: 86400,
+    month: 2592000,
+    year: 31536000
+  };
+
+  const multiplier = unitToSeconds[unit];
+  return multiplier ? value * multiplier : null;
+}
+
+function bfQolGetFallbackEffectDuration(activity) {
+  const itemDuration = activity?.item?.system?.duration;
+  const activityDuration = activity?.duration;
+  const seconds = bfQolDurationToSeconds(itemDuration) ?? bfQolDurationToSeconds(activityDuration);
+  if (!seconds) return null;
+
+  return {
+    seconds,
+    startTime: game.time.worldTime
+  };
+}
+
+function bfQolGetActivityEffectTargetUuids(message) {
+  const uuids = new Set();
+
+  for (const target of message?.getFlag(game.system.id, "targets") ?? []) {
+    if (target.uuid) uuids.add(target.uuid);
+  }
+
+  if (!uuids.size) {
+    for (const token of game.user.targets) {
+      if (token.actor?.uuid) uuids.add(token.actor.uuid);
+    }
+  }
+
+  if (!uuids.size) {
+    for (const token of canvas.tokens?.controlled ?? []) {
+      if (token.actor?.uuid) uuids.add(token.actor.uuid);
+    }
+  }
+
+  return Array.from(uuids);
+}
+
+async function bfQolGetActorFromUuid(uuid) {
+  const document = await fromUuid(uuid);
+  return document?.documentName === "Actor" ? document : document?.actor;
+}
+
+async function bfQolApplyEffectToActor(effect, actor, activity, messageFlags = {}) {
+  if (!effect || !actor) return;
+  if (!game.user.isGM && !actor.isOwner) return;
+
+  const concentrationItemUuid = activity?.item?.system?.tags?.has("concentration")
+    ? activity.item.uuid
+    : null;
+
+  const effectFlags = {
+    flags: {
+      [game.system.id]: {
+        scaling: messageFlags.scaling,
+        spellSlot: messageFlags.spellSlot
+      }
+    }
+  };
+
+  const durationUpdate = bfQolEffectHasDuration(effect.toObject())
+    ? null
+    : bfQolGetFallbackEffectDuration(activity);
+
+  const existingEffect = actor.effects.find(actorEffect => actorEffect.origin === effect.uuid);
+  if (existingEffect) {
+    const durationData = durationUpdate
+      ? { duration: durationUpdate }
+      : (effect.constructor.getInitialDuration?.() ?? {});
+    const updateData = foundry.utils.mergeObject(
+      {
+        disabled: false,
+        ...durationData
+      },
+      effectFlags
+    );
+    if (concentrationItemUuid) {
+      updateData.flags ??= {};
+      updateData.flags["bf-qol"] ??= {};
+      updateData.flags["bf-qol"].concentrationItemUuid = concentrationItemUuid;
+    }
+    return existingEffect.update(updateData);
+  }
+
+  const effectData = foundry.utils.mergeObject(
+    {
+      ...effect.toObject(),
+      disabled: false,
+      transfer: false,
+      origin: effect.uuid
+    },
+    effectFlags
+  );
+  delete effectData._id;
+
+  if (concentrationItemUuid) {
+    effectData.flags ??= {};
+    effectData.flags["bf-qol"] ??= {};
+    effectData.flags["bf-qol"].concentrationItemUuid = concentrationItemUuid;
+  }
+
+  if (durationUpdate) {
+    effectData.duration = {
+      ...(effectData.duration ?? {}),
+      ...durationUpdate
+    };
+  }
+
+  return actor.createEmbeddedDocuments("ActiveEffect", [effectData]);
+}
+
+async function bfQolApplyActivityEffects({ activityUuid, targetUuids, scaling, spellSlot }) {
+  const activity = await fromUuid(activityUuid);
+  const effects = bfQolGetActivityEffects(activity);
+  if (!activity || !effects.length || !targetUuids?.length) return;
+
+  const messageFlags = { scaling, spellSlot };
+  for (const uuid of targetUuids) {
+    const actor = await bfQolGetActorFromUuid(uuid);
+    if (!actor) continue;
+
+    for (const effect of effects) {
+      try {
+        await bfQolApplyEffectToActor(effect, actor, activity, messageFlags);
+      } catch (err) {
+        Hooks.onError("bf-qol.bfQolApplyEffectToActor", err, { notify: "warn", log: "warn" });
+      }
+    }
+  }
+}
+
+// Generates Socket with Socketlib to create effects in NPCs by Players
+let bfQolSocket = null;
+
+Hooks.once("socketlib.ready", () => {
+  console.log("SOCKETLIB READY");
+
+  bfQolSocket = socketlib.registerModule("bf-qol");
+
+  bfQolSocket.register("applyActivityEffects", async (payload) => {
+
+    await bfQolApplyActivityEffects(payload);
+  });
 });
 
 // Add Warning Template to a List of BlackFlag Dialogs
@@ -297,6 +494,88 @@ Hooks.on("deleteCombat", async (combat) => {
 });
 //endregion
 
+//region Linked Activity Effects
+Hooks.once("init", () => {
+  libWrapper.register(
+    "bf-qol",
+    "BlackFlag.applications.components.EffectApplicationElement.prototype._applyEffectToActor",
+    async function (wrapped, effect, actor) {
+
+      const activity = this.message?.getAssociatedActivity?.();
+
+      const durationUpdate = activity && !bfQolEffectHasDuration(effect.toObject())
+        ? bfQolGetFallbackEffectDuration(activity)
+        : null;
+
+      const caster = this.message?.getAssociatedActor?.();
+
+      const item = activity?.item;
+
+      const concentrationItemUuid =
+        item?.system?.tags?.has("concentration")
+          ? item.uuid
+          : null;
+
+      if (!durationUpdate && !concentrationItemUuid) {
+        return wrapped(effect, actor);
+      }
+
+      const effectData = effect.toObject();
+
+      // Duration
+      if (durationUpdate) {
+        effectData.duration = {
+          ...(effectData.duration ?? {}),
+          ...durationUpdate
+        };
+      }
+
+      // Flag for Concentration Effects
+      if (concentrationItemUuid) {
+        effectData.flags ??= {};
+        effectData.flags["bf-qol"] ??= {};
+
+        effectData.flags["bf-qol"].concentrationItemUuid = concentrationItemUuid;
+      }
+
+      const timedEffect = new effect.constructor(effectData, {
+        parent: effect.parent
+      });
+
+      return wrapped(timedEffect, actor);
+    },
+    "WRAPPER"
+  );
+});
+
+Hooks.on("blackFlag.postActivateActivity", async (activity, activationConfig, results) => {
+  const autoApplyActivityEffects = game.settings.get("bf-qol", "autoApplyActivityEffects");
+  if (!autoApplyActivityEffects) return;
+
+  const effects = bfQolGetActivityEffects(activity);
+  if (!effects.length) return;
+
+  const message = results?.message;
+  const targetUuids = bfQolGetActivityEffectTargetUuids(message);
+  if (!targetUuids.length) return;
+
+  const payload = {
+    action: "applyActivityEffects",
+    activityUuid: activity.uuid,
+    targetUuids,
+    scaling: message?.getFlag(game.system.id, "scaling"),
+    spellSlot: message?.getFlag(game.system.id, "spellSlot")
+  };
+
+  if (game.user.isGM) {
+    await bfQolApplyActivityEffects(payload);
+  } else {
+    await bfQolSocket.executeAsGM("applyActivityEffects", payload);
+  }
+});
+
+//endregion
+
 //region Concentration
 Hooks.on("blackFlag.preActivateActivity", async (activity, activationConfig) => {
   //Check if activity requires concentration, checks if actor is concentrating and render message if wants to replace concentration
@@ -345,7 +624,7 @@ Hooks.on("createChatMessage", async (message) => {
 
   //Concentrating Effect duration, convert to seconds
   const durationValue = parseFloat(item.system.duration?.value) || 1;
-  const durationUnit = item.system.duration?.units || "minute";
+  const durationUnit = item.system.duration?.unit || "minute";
 
   const unitToSeconds = {
     round: 6,
@@ -370,11 +649,66 @@ Hooks.on("createChatMessage", async (message) => {
     flags: {
       "black-flag": {
         concentrationSource: item.name
+      },
+      "bf-qol": {
+        concentrationItemUuid: item.uuid
       }
     }
   };
 
   await actor.createEmbeddedDocuments("ActiveEffect", [effectData]);
+});
+
+// Delete all effects relationated with concentration
+Hooks.on("deleteActiveEffect", async (effect, options, userId) => {
+  const autoDeleteConcentrationEffects = game.settings.get("bf-qol", "autoDeleteConcentrationEffects");
+  if (!autoDeleteConcentrationEffects) return;
+
+  // Only Concentration
+  if (!effect.flags?.["black-flag"]?.concentrationSource) return;
+
+  // Only one client should clean linked effects.
+  if (!bfQolIsPrimaryGM()) return;
+
+  const concentrationItemUuid =
+    effect.flags?.["bf-qol"]?.concentrationItemUuid;
+
+  if (!concentrationItemUuid) return;
+
+  // Search all actors in Scene
+  for (const actor of game.actors.contents) {
+
+    const linkedEffects = actor.effects.filter(e =>
+      e.flags?.["bf-qol"]?.concentrationItemUuid === concentrationItemUuid
+    );
+
+    if (!linkedEffects.length) continue;
+
+    await actor.deleteEmbeddedDocuments(
+      "ActiveEffect",
+      linkedEffects.map(e => e.id)
+    );
+  }
+
+  // Verify Concentration Flag = Effect FLag
+  for (const scene of game.scenes.contents) {
+    for (const token of scene.tokens.contents) {
+
+      const actor = token.actor;
+      if (!actor) continue;
+
+      const linkedEffects = actor.effects.filter(e =>
+        e.flags?.["bf-qol"]?.concentrationItemUuid === concentrationItemUuid
+      );
+
+      if (!linkedEffects.length) continue;
+
+      await actor.deleteEmbeddedDocuments(
+        "ActiveEffect",
+        linkedEffects.map(e => e.id)
+      );
+    }
+  }
 });
 
 //Auto generate Message if actor takes damage
@@ -443,37 +777,42 @@ Hooks.on("preUpdateActor", async (actor, updates, options, userId) => {
 });
 
 //Enable Roll button
-Hooks.on("renderChatMessage", (message, html, data) => {
+Hooks.on("renderChatMessageHTML", (message, html, data) => {
   const saveConcentration = game.settings.get("bf-qol", "saveConcentration");
   if (!saveConcentration) return;
 
   if (message.flags["bf-qol-concentrating"]?.displayChallenge) {
-    html[0].setAttribute("data-display-challenge", "");
+    html.setAttribute("data-display-challenge", "");
   }
 
-  html.find(".concentration-save-button").click(async (event) => {
-    const button = event.currentTarget;
-    const actorId = button.dataset.actorId;
-    const dc = parseInt(button.dataset.dc, 10);
+  const buttons = html.querySelectorAll(".concentration-save-button");
 
-    const actor = game.actors.get(actorId);
-    if (!actor) return;
+  buttons.forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      const actorId = button.dataset.actorId;
+      const dc = parseInt(button.dataset.dc, 10);
 
-    const config = {
-      ability: "constitution",
-      type: "save",
-      chatMessage: true,
-      target: dc
-    };
+      const actor = game.actors.get(actorId);
+      if (!actor) return;
 
-    actor.rollAbilitySave(config);
+      const config = {
+        ability: "constitution",
+        type: "save",
+        chatMessage: true,
+        target: dc
+      };
 
+      actor.rollAbilitySave(config);
+    });
   });
 });
 
 //region Weapon Options
 //Add weapon options activities
 Hooks.on("updateItem", async (item, updateData, options, userId) => {
+  if (options.bfQolWeaponOptions) return;
+  if (game.user.id !== userId) return;
+
   const weaponOptions = game.settings.get("bf-qol", "weaponOptions");
   if (!weaponOptions) return;
 
@@ -485,51 +824,58 @@ Hooks.on("updateItem", async (item, updateData, options, userId) => {
   if (actor.type !== "pc") return;
 
   const itemOptions = foundry.utils.getProperty(updateData, "system.options") ?? item.system.options ?? [];
-  const currentActivities = item.system.activities ?? {};
+  const currentActivities = foundry.utils.duplicate(item.toObject?.().system?.activities ?? {});
 
   let updated = false;
+  const activityUpdates = {};
+  const idsToDelete = new Set();
+  const existingOptions = new Set();
+
+  for (const [id, act] of Object.entries(currentActivities)) {
+    const option = act.flags?.["bf-qol"]?.activity;
+    if (!weaponOptionTemplates[option]) continue;
+
+    if (existingOptions.has(option)) {
+      idsToDelete.add(id);
+      updated = true;
+      continue;
+    }
+
+    existingOptions.add(option);
+  }
 
   // Add weapon options Activities if marked
   for (const option of itemOptions) {
     const template = weaponOptionTemplates[option];
     if (!template) continue;
 
-    const alreadyExists = [...currentActivities.values()].some(
-      act => act.flags?.["bf-qol"]?.activity === option
-    );
-    if (!alreadyExists) {
+    if (!existingOptions.has(option)) {
       const activity = foundry.utils.duplicate(weaponOptionTemplates[option]);
       const id = foundry.utils.randomID();
       activity._id = id;
-      currentActivities[id] = activity;
+      activityUpdates[`system.activities.${id}`] = activity;
+      existingOptions.add(option);
       updated = true;
     }
   }
 
   // Remove Weapon Options Activites if not marked
-  let id_array = []
-  for (const act of [...currentActivities]) {
-    const match = Object.entries(weaponOptionTemplates).find(([key, tmpl]) => tmpl.flags?.["bf-qol"]?.activity === act.flags?.["bf-qol"]?.activity);
-    if (match) {
-      const [key, tmpl] = match;
-      try {
-        if (!itemOptions.includes(key)) {
-          id_array.push(act._id);
-          updated = true;
-        }
-      } catch {
-        console.log('Error trying to remove activity.')
-      }
+  for (const [id, act] of Object.entries(currentActivities)) {
+    const option = act.flags?.["bf-qol"]?.activity;
+    if (!weaponOptionTemplates[option]) continue;
+
+    if (!itemOptions.includes(option)) {
+      idsToDelete.add(id);
+      updated = true;
     }
   }
 
   // Update Item
   if (updated) {
-    const updatedActivities = { ...currentActivities };
-    await item.update({ "system.activities": updatedActivities });
-    for (const id of id_array) {
-      await item.update({ [`system.activities.-=${id}`]: null });
+    for (const id of idsToDelete) {
+      activityUpdates[`system.activities.-=${id}`] = null;
     }
+    await item.update(activityUpdates, { bfQolWeaponOptions: true });
   }
 });
 
